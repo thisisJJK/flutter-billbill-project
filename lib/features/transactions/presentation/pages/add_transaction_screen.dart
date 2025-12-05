@@ -1,23 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../data/models/counterparty.dart';
+import '../../data/models/transaction.dart';
+import '../../domain/entities/transaction_status.dart';
+import '../../domain/entities/transaction_type.dart';
+import '../providers/providers.dart';
 import '../widgets/custom_keypad.dart';
 import '../widgets/transaction_type_selector.dart';
 
-class AddTransactionScreen extends StatefulWidget {
+class AddTransactionScreen extends ConsumerStatefulWidget {
   final String? transactionId; // If provided, edit mode
 
   const AddTransactionScreen({super.key, this.transactionId});
 
   @override
-  State<AddTransactionScreen> createState() => _AddTransactionScreenState();
+  ConsumerState<AddTransactionScreen> createState() =>
+      _AddTransactionScreenState();
 }
 
-class _AddTransactionScreenState extends State<AddTransactionScreen> {
+class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   late bool isLent;
   String amount = '0';
-  String? selectedCounterparty;
+  Counterparty? selectedCounterparty; // String에서 Counterparty 객체로 변경
 
   @override
   void initState() {
@@ -27,7 +35,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       // Mock data for edit mode
       isLent = int.tryParse(widget.transactionId!)?.isEven ?? true;
       amount = '50000';
-      selectedCounterparty = isLent ? '수지' : '철수';
+      // selectedCounterparty는 나중에 실제 데이터에서 로드
     } else {
       isLent = true;
     }
@@ -38,7 +46,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget _buildCounterpartyInput() {
     return GestureDetector(
       onTap: () async {
-        final result = await context.pushNamed<String>('selectCounterparty');
+        final result = await context.pushNamed<Counterparty>(
+          'selectCounterparty',
+        );
         if (result != null) {
           setState(() {
             selectedCounterparty = result;
@@ -61,7 +71,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                selectedCounterparty ?? '이름 또는 연락처 검색',
+                selectedCounterparty?.name ?? '이름 또는 연락처 검색',
                 style: TextStyle(
                   color: selectedCounterparty != null
                       ? Colors.black
@@ -85,16 +95,71 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     });
   }
 
-  void _onKeypadTap(String value) {
-    setState(() {
-      if (value == 'backspace') {
+  void _onKeypadTap(String value) async {
+    if (value == 'backspace') {
+      setState(() {
         if (amount.length > 1) {
           amount = amount.substring(0, amount.length - 1);
         } else {
           amount = '0';
         }
-      } else if (value == 'ok') {
-        // Mock Save/Update
+      });
+    } else if (value == 'ok') {
+      // 유효성 검사
+      final amountInt = int.tryParse(amount);
+      if (amountInt == null || amountInt <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('금액을 입력해주세요.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primaryRed,
+          ),
+        );
+        return;
+      }
+
+      if (selectedCounterparty == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('상대방을 선택해주세요.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primaryRed,
+          ),
+        );
+        return;
+      }
+
+      try {
+        final uuid = const Uuid();
+        final now = DateTime.now();
+        final counterpartyRepository = ref.read(counterpartyRepositoryProvider);
+        final transactionRepository = ref.read(transactionRepositoryProvider);
+
+        // 상대방 정보 저장 (이미 존재하는 경우 스킵)
+        final existingCounterparty = await counterpartyRepository
+            .getCounterpartyById(selectedCounterparty!.id);
+        if (existingCounterparty == null) {
+          await counterpartyRepository.addCounterparty(selectedCounterparty!);
+        }
+
+        // 거래 정보 생성 및 저장
+        final transaction = Transaction(
+          id: uuid.v4(),
+          type: isLent ? TransactionType.lent : TransactionType.borrowed,
+          counterpartyId: selectedCounterparty!.id,
+          amount: amountInt,
+          currency: 'KRW',
+          date: now,
+          status: TransactionStatus.open,
+          notes: null,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await transactionRepository.addTransaction(transaction);
+
+        if (!mounted) return;
+
         final message = widget.transactionId != null
             ? '거래가 수정되었습니다.'
             : '거래가 저장되었습니다.';
@@ -102,25 +167,35 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           SnackBar(
             content: Text(message),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.textBlack,
+            backgroundColor: AppColors.primaryGreen,
           ),
         );
         context.pop();
-      } else {
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('저장 중 오류가 발생했습니다: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primaryRed,
+          ),
+        );
+      }
+    } else {
+      setState(() {
         if (amount == '0') {
           amount = value;
         } else if (amount.length < 10) {
           // Limit length
           amount += value;
         }
-      }
-    });
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final primaryColor = isLent ? AppColors.primaryGreen : AppColors.primaryRed;
-    final bgColor = isLent ? AppColors.bgGreen : AppColors.bgRed;
 
     return Scaffold(
       backgroundColor: Colors.white,

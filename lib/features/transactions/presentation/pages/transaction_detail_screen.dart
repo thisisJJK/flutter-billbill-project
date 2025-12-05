@@ -249,6 +249,14 @@ class TransactionDetailScreen extends ConsumerWidget {
                           onPressed: () {
                             context.go(
                               '/home/transaction/$transactionId/payment',
+                              extra:
+                                  remainingAmountAsync.valueOrNull ??
+                                  (transaction.amount -
+                                      (paymentsAsync.valueOrNull?.fold<int>(
+                                            0,
+                                            (p, c) => p + c.amount,
+                                          ) ??
+                                          0)),
                             );
                           },
                           backgroundColor: primaryColor,

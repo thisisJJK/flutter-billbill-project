@@ -48,10 +48,10 @@ final appRouter = GoRouter(
               name: 'partialPayment',
               builder: (context, state) {
                 final id = state.pathParameters['id']!;
-                // TODO: Fetch real remaining amount
+                final remainingAmount = state.extra as int? ?? 0;
                 return PartialPaymentScreen(
                   transactionId: id,
-                  remainingAmount: 50000,
+                  remainingAmount: remainingAmount,
                 );
               },
             ),

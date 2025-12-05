@@ -1,3 +1,4 @@
+import 'package:bill_bill/features/transactions/data/models/payment.dart';
 import 'package:bill_bill/features/transactions/data/models/transaction.dart';
 import 'package:bill_bill/features/transactions/domain/entities/transaction_status.dart';
 import 'package:bill_bill/features/transactions/domain/entities/transaction_type.dart';
@@ -85,24 +86,41 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
   @override
   Future<int> getTotalLent() async {
-    return _box.values
-        .where(
-          (t) =>
-              t.type == TransactionType.lent &&
-              t.status == TransactionStatus.open,
-        )
-        .fold<int>(0, (sum, t) => sum + t.amount);
+    final transactions = _box.values.where(
+      (t) =>
+          t.type == TransactionType.lent && t.status == TransactionStatus.open,
+    );
+    final paymentBox = Hive.box<Payment>('payments');
+
+    int total = 0;
+    for (var transaction in transactions) {
+      final payments = paymentBox.values.where(
+        (p) => p.transactionId == transaction.id,
+      );
+      final paidAmount = payments.fold<int>(0, (sum, p) => sum + p.amount);
+      total += (transaction.amount - paidAmount);
+    }
+    return total;
   }
 
   @override
   Future<int> getTotalBorrowed() async {
-    return _box.values
-        .where(
-          (t) =>
-              t.type == TransactionType.borrowed &&
-              t.status == TransactionStatus.open,
-        )
-        .fold<int>(0, (sum, t) => sum + t.amount);
+    final transactions = _box.values.where(
+      (t) =>
+          t.type == TransactionType.borrowed &&
+          t.status == TransactionStatus.open,
+    );
+    final paymentBox = Hive.box<Payment>('payments');
+
+    int total = 0;
+    for (var transaction in transactions) {
+      final payments = paymentBox.values.where(
+        (p) => p.transactionId == transaction.id,
+      );
+      final paidAmount = payments.fold<int>(0, (sum, p) => sum + p.amount);
+      total += (transaction.amount - paidAmount);
+    }
+    return total;
   }
 
   @override

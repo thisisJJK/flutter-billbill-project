@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/widgets/primary_button.dart';
+import '../../data/models/counterparty.dart';
 
 class CounterpartySelectionScreen extends StatefulWidget {
   const CounterpartySelectionScreen({super.key});
@@ -51,7 +53,16 @@ class _CounterpartySelectionScreenState
   }
 
   void _selectCounterparty(String name) {
-    context.pop(name);
+    // Counterparty 객체 생성
+    final uuid = const Uuid();
+    final now = DateTime.now();
+    final counterparty = Counterparty(
+      id: uuid.v4(),
+      name: name,
+      createdAt: now,
+      updatedAt: now,
+    );
+    context.pop(counterparty);
   }
 
   @override
