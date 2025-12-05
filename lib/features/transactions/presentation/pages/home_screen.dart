@@ -1,3 +1,4 @@
+import 'package:bill_bill/core/widgets/empty_state_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -28,6 +29,12 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
                 actions: [
+                  IconButton(
+                    icon: const Icon(Icons.search, color: AppColors.textBlack),
+                    onPressed: () {
+                      context.push('/search');
+                    },
+                  ),
                   IconButton(
                     icon: const Icon(
                       Icons.settings_outlined,
@@ -107,7 +114,7 @@ class HomeScreen extends StatelessWidget {
     }).toList();
 
     if (filteredItems.isEmpty) {
-      return const Center(child: Text('거래 내역이 없습니다.'));
+      return const EmptyStateWidget(message: '거래 내역이 없습니다.\n새로운 거래를 추가해보세요!');
     }
 
     return ListView.builder(

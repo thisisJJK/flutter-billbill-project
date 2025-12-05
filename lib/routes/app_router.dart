@@ -1,3 +1,4 @@
+import 'package:bill_bill/features/transactions/presentation/pages/search_filter_screen.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/settings/presentation/pages/settings_screen.dart';
@@ -70,6 +71,11 @@ final appRouter = GoRouter(
       path: '/settings',
       name: 'settings',
       builder: (context, state) => SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/search',
+      name: 'search',
+      builder: (context, state) => const SearchFilterScreen(),
     ),
   ],
 );
