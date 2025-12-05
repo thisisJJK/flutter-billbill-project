@@ -1,16 +1,18 @@
 import 'package:bill_bill/core/widgets/empty_state_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../providers/providers.dart';
 import '../widgets/summary_card.dart';
 import '../widgets/transaction_list_item.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.bgGrey,
       body: DefaultTabController(
@@ -83,9 +85,9 @@ class HomeScreen extends StatelessWidget {
           },
           body: TabBarView(
             children: [
-              _buildTransactionList(context, filter: 'all'),
-              _buildTransactionList(context, filter: 'lent'),
-              _buildTransactionList(context, filter: 'borrowed'),
+              _buildTransactionList(context, ref, filter: 'all'),
+              _buildTransactionList(context, ref, filter: 'lent'),
+              _buildTransactionList(context, ref, filter: 'borrowed'),
             ],
           ),
         ),
@@ -100,39 +102,71 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionList(BuildContext context, {required String filter}) {
-    // Dummy Data Generation
-    final allItems = List.generate(20, (index) {
-      final isLent = index % 2 == 0;
-      return {'index': index, 'isLent': isLent};
-    });
+  Widget _buildTransactionList(
+    BuildContext context,
+    WidgetRef ref, {
+    required String filter,
+  }) {
+    // Provider 선택 (필터에 따라)
+    final transactionsAsyncValue = filter == 'lent'
+        ? ref.watch(lentTransactionsProvider)
+        : filter == 'borrowed'
+        ? ref.watch(borrowedTransactionsProvider)
+        : ref.watch(allTransactionsProvider);
 
-    final filteredItems = allItems.where((item) {
-      if (filter == 'lent') return item['isLent'] == true;
-      if (filter == 'borrowed') return item['isLent'] == false;
-      return true;
-    }).toList();
+    return transactionsAsyncValue.when(
+      data: (transactions) {
+        if (transactions.isEmpty) {
+          return const EmptyStateWidget(
+            message: '거래 내역이 없습니다.\n새로운 거래를 추가해보세요!',
+          );
+        }
 
-    if (filteredItems.isEmpty) {
-      return const EmptyStateWidget(message: '거래 내역이 없습니다.\n새로운 거래를 추가해보세요!');
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: filteredItems.length,
-      itemBuilder: (context, index) {
-        final item = filteredItems[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12.0),
-          child: TransactionListItem(
-            index: item['index'] as int,
-            isLent: item['isLent'] as bool,
-            onTap: () {
-              context.go('/home/transaction/${item['index']}');
-            },
-          ),
+        return ListView.builder(
+          padding: const EdgeInsets.all(16.0),
+          itemCount: transactions.length,
+          itemBuilder: (context, index) {
+            final transaction = transactions[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: TransactionListItem(
+                transaction: transaction,
+                onTap: () {
+                  context.go('/home/transaction/${transaction.id}');
+                },
+              ),
+            );
+          },
         );
       },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 48,
+              color: AppColors.primaryRed,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '데이터를 불러올 수 없습니다',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textGrey),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error.toString(),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textGrey),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

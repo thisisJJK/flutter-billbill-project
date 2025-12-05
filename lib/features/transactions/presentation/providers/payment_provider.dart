@@ -4,13 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 /// 모든 상환 내역 Provider (실시간 업데이트)
-final allPaymentsProvider = StreamProvider<List<Payment>>((ref) {
+final allPaymentsProvider = StreamProvider<List<Payment>>((ref) async* {
   final box = Hive.box<Payment>('payments');
 
-  return box.watch().map((_) {
-    return box.values.toList()
-      ..sort((a, b) => b.date.compareTo(a.date)); // 최신순 정렬
-  });
+  // 초기 데이터 emit
+  yield box.values.toList()..sort((a, b) => b.date.compareTo(a.date));
+
+  // 이후 변경사항 감지
+  await for (final _ in box.watch()) {
+    yield box.values.toList()..sort((a, b) => b.date.compareTo(a.date));
+  }
 });
 
 /// 특정 거래의 상환 내역 Provider

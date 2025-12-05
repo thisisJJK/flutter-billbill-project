@@ -1,23 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../data/models/transaction.dart';
+import '../../domain/entities/transaction_type.dart';
+import '../providers/providers.dart';
 
-class TransactionListItem extends StatelessWidget {
-  final int index;
-  final bool isLent;
+/// 거래 목록 아이템 위젯
+/// 실제 Transaction 모델을 받아서 표시
+class TransactionListItem extends ConsumerWidget {
+  final Transaction transaction;
   final VoidCallback? onTap;
 
-  const TransactionListItem({
-    super.key,
-    required this.index,
-    required this.isLent,
-    this.onTap,
-  });
+  const TransactionListItem({super.key, required this.transaction, this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isLent = transaction.type == TransactionType.lent;
+
+    // 상대방 정보 가져오기
+    final counterpartyAsync = ref.watch(
+      counterpartyDetailProvider(transaction.counterpartyId),
+    );
+
+    // 남은 금액 계산
+    final remainingAmountAsync = ref.watch(
+      remainingAmountProvider(transaction.id),
+    );
+
     return Dismissible(
-      key: ValueKey(index),
+      key: ValueKey(transaction.id),
       background: Container(
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 20),
@@ -40,16 +53,29 @@ class TransactionListItem extends StatelessWidget {
           ),
           child: Row(
             children: [
-              CircleAvatar(
-                backgroundColor: isLent ? AppColors.bgGreen : AppColors.bgRed,
-                child: Text(
-                  isLent ? '김' : '이',
-                  style: TextStyle(
-                    color: isLent
-                        ? AppColors.primaryGreen
-                        : AppColors.primaryRed,
-                    fontWeight: FontWeight.bold,
+              // 상대방 아바타
+              counterpartyAsync.when(
+                data: (counterparty) => CircleAvatar(
+                  backgroundColor: isLent ? AppColors.bgGreen : AppColors.bgRed,
+                  child: Text(
+                    counterparty?.name.isNotEmpty == true
+                        ? counterparty!.name[0]
+                        : '?',
+                    style: TextStyle(
+                      color: isLent
+                          ? AppColors.primaryGreen
+                          : AppColors.primaryRed,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
+                ),
+                loading: () => CircleAvatar(
+                  backgroundColor: AppColors.bgGrey,
+                  child: Icon(Icons.person, color: AppColors.textGrey),
+                ),
+                error: (_, __) => CircleAvatar(
+                  backgroundColor: AppColors.bgGrey,
+                  child: Icon(Icons.person, color: AppColors.textGrey),
                 ),
               ),
               const SizedBox(width: 16),
@@ -57,18 +83,36 @@ class TransactionListItem extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      isLent ? '김철수' : '이영희',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                    // 상대방 이름
+                    counterpartyAsync.when(
+                      data: (counterparty) => Text(
+                        counterparty?.name ?? '알 수 없음',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      loading: () => Text(
+                        '로딩 중...',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textGrey,
+                            ),
+                      ),
+                      error: (_, __) => Text(
+                        '알 수 없음',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                     ),
                     const SizedBox(height: 4),
+                    // 날짜 및 메모
                     Text(
-                      '2024.12.05 · 점심값 정산',
+                      '${_formatDate(transaction.date)}${transaction.notes != null ? ' · ${transaction.notes}' : ''}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textGrey,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -76,16 +120,38 @@ class TransactionListItem extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    isLent ? '20,000원' : '5,000원',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: isLent
-                          ? AppColors.primaryGreen
-                          : AppColors.primaryRed,
-                      fontWeight: FontWeight.bold,
+                  // 금액 (남은 금액 표시)
+                  remainingAmountAsync.when(
+                    data: (remainingAmount) => Text(
+                      _formatCurrency(remainingAmount),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: isLent
+                            ? AppColors.primaryGreen
+                            : AppColors.primaryRed,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    loading: () => Text(
+                      _formatCurrency(transaction.amount),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: isLent
+                            ? AppColors.primaryGreen
+                            : AppColors.primaryRed,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    error: (_, __) => Text(
+                      _formatCurrency(transaction.amount),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: isLent
+                            ? AppColors.primaryGreen
+                            : AppColors.primaryRed,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),
+                  // 타입 태그
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -96,7 +162,7 @@ class TransactionListItem extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      isLent ? '빌려줌' : '갚을돈',
+                      isLent ? '빌려줌' : '빌림',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: isLent
                             ? AppColors.primaryGreen
@@ -112,5 +178,16 @@ class TransactionListItem extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// 날짜 포맷
+  String _formatDate(DateTime date) {
+    return DateFormat('yyyy.MM.dd').format(date);
+  }
+
+  /// 금액 포맷
+  String _formatCurrency(int amount) {
+    final formatter = NumberFormat('#,###');
+    return '${formatter.format(amount)}원';
   }
 }

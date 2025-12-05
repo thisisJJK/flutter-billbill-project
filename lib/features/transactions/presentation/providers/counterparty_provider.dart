@@ -4,13 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 /// 모든 상대방 목록 Provider (실시간 업데이트)
-final allCounterpartiesProvider = StreamProvider<List<Counterparty>>((ref) {
+final allCounterpartiesProvider = StreamProvider<List<Counterparty>>((
+  ref,
+) async* {
   final box = Hive.box<Counterparty>('counterparties');
 
-  return box.watch().map((_) {
-    return box.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name)); // 이름순 정렬
-  });
+  // 초기 데이터 emit
+  yield box.values.toList()..sort((a, b) => a.name.compareTo(b.name));
+
+  // 이후 변경사항 감지
+  await for (final _ in box.watch()) {
+    yield box.values.toList()..sort((a, b) => a.name.compareTo(b.name));
+  }
 });
 
 /// 특정 상대방 상세 Provider (ID 기반)
