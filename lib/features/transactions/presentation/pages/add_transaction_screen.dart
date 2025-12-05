@@ -94,7 +94,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           amount = '0';
         }
       } else if (value == 'ok') {
-        // TODO: Save transaction
+        // Mock Save/Update
+        final message = widget.transactionId != null
+            ? '거래가 수정되었습니다.'
+            : '거래가 저장되었습니다.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.textBlack,
+          ),
+        );
         context.pop();
       } else {
         if (amount == '0') {
@@ -121,9 +131,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           icon: const Icon(Icons.close, color: Colors.black),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
-          '거래 기록',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        title: Text(
+          widget.transactionId != null ? '거래 수정' : '거래 기록',
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: Column(
