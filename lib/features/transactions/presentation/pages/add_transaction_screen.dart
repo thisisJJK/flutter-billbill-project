@@ -6,15 +6,78 @@ import '../widgets/custom_keypad.dart';
 import '../widgets/transaction_type_selector.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key});
+  final String? transactionId; // If provided, edit mode
+
+  const AddTransactionScreen({super.key, this.transactionId});
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
 }
 
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
-  bool isLent = true; // true: 빌려준 돈, false: 빌린 돈
+  late bool isLent;
   String amount = '0';
+  String? selectedCounterparty;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.transactionId != null) {
+      // TODO: Fetch existing transaction data
+      // Mock data for edit mode
+      isLent = int.tryParse(widget.transactionId!)?.isEven ?? true;
+      amount = '50000';
+      selectedCounterparty = isLent ? '수지' : '철수';
+    } else {
+      isLent = true;
+    }
+  }
+
+  // ... (existing code)
+
+  Widget _buildCounterpartyInput() {
+    return GestureDetector(
+      onTap: () async {
+        final result = await context.pushNamed<String>('selectCounterparty');
+        if (result != null) {
+          setState(() {
+            selectedCounterparty = result;
+          });
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.bgGrey, width: 2)),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selectedCounterparty != null ? Icons.person : Icons.person_search,
+              color: selectedCounterparty != null
+                  ? Colors.black
+                  : AppColors.textGrey,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                selectedCounterparty ?? '이름 또는 연락처 검색',
+                style: TextStyle(
+                  color: selectedCounterparty != null
+                      ? Colors.black
+                      : AppColors.textGrey.withOpacity(0.5),
+                  fontSize: 16,
+                  fontWeight: selectedCounterparty != null
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _onTypeChanged(bool newValue) {
     setState(() {
@@ -155,30 +218,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
           // Keypad
           CustomKeypad(onTap: _onKeypadTap, confirmColor: primaryColor),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCounterpartyInput() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.bgGrey, width: 2)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.person_search, color: AppColors.textGrey),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              '이름 또는 연락처 검색',
-              style: TextStyle(
-                color: AppColors.textGrey.withOpacity(0.5),
-                fontSize: 16,
-              ),
-            ),
-          ),
         ],
       ),
     );

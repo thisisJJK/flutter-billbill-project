@@ -27,6 +27,17 @@ class HomeScreen extends StatelessWidget {
                     color: AppColors.textBlack,
                   ),
                 ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      color: AppColors.textBlack,
+                    ),
+                    onPressed: () {
+                      context.push('/settings');
+                    },
+                  ),
+                ],
                 centerTitle: false,
                 floating: true,
                 snap: true,
@@ -109,6 +120,9 @@ class HomeScreen extends StatelessWidget {
           child: TransactionListItem(
             index: item['index'] as int,
             isLent: item['isLent'] as bool,
+            onTap: () {
+              context.go('/home/transaction/${item['index']}');
+            },
           ),
         );
       },
