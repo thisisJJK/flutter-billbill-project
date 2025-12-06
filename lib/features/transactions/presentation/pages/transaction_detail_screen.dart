@@ -33,6 +33,178 @@ class TransactionDetailScreen extends ConsumerWidget {
       remainingAmountProvider(transactionId),
     );
 
+    // 거래 삭제 처리
+    Future<void> deleteTransaction() async {
+      // 로딩 다이얼로그 표시
+      if (!context.mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      try {
+        final transactionRepository = ref.read(transactionRepositoryProvider);
+        final paymentRepository = ref.read(paymentRepositoryProvider);
+
+        // 관련된 모든 상환 내역 삭제
+        final payments = await paymentRepository.getPaymentsByTransaction(
+          transactionId,
+        );
+        for (final payment in payments) {
+          await paymentRepository.deletePayment(payment.id);
+        }
+
+        // 거래 삭제
+        await transactionRepository.deleteTransaction(transactionId);
+
+        if (!context.mounted) return;
+
+        // 로딩 다이얼로그 닫기
+        Navigator.of(context).pop();
+
+        // 성공 메시지 표시
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('거래가 삭제되었습니다.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primaryGreen,
+          ),
+        );
+
+        // 홈 화면으로 이동
+        context.go('/home');
+      } catch (e) {
+        if (!context.mounted) return;
+
+        // 로딩 다이얼로그 닫기
+        Navigator.of(context).pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('삭제 중 오류가 발생했습니다: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primaryRed,
+          ),
+        );
+      }
+    }
+
+    // 삭제 확인 다이얼로그 표시
+    Future<void> showDeleteConfirmation() async {
+      // 거래 정보 가져오기
+      final transactionRepository = ref.read(transactionRepositoryProvider);
+      final counterpartyRepository = ref.read(counterpartyRepositoryProvider);
+
+      final transaction = await transactionRepository.getTransactionById(
+        transactionId,
+      );
+
+      if (transaction == null) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('거래 정보를 불러올 수 없습니다.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primaryRed,
+          ),
+        );
+        return;
+      }
+
+      // 상대방 정보 가져오기
+      final counterparty = await counterpartyRepository.getCounterpartyById(
+        transaction.counterpartyId,
+      );
+
+      if (!context.mounted) return;
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            '거래 삭제',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '이 거래를 삭제하시겠습니까?',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textBlack,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.bgGrey,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '상대방: ${counterparty?.name ?? '알 수 없음'}',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textGrey,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '금액: ${_formatCurrency(transaction.amount)}',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textGrey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '⚠️ 관련된 모든 상환 내역도 함께 삭제됩니다.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.primaryRed,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                '취소',
+                style: TextStyle(
+                  color: AppColors.textGrey,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primaryRed,
+              ),
+              child: const Text(
+                '삭제',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true) {
+        await deleteTransaction();
+      }
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -54,9 +226,7 @@ class TransactionDetailScreen extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.black),
-            onPressed: () {
-              // Show Delete Confirmation
-            },
+            onPressed: showDeleteConfirmation,
           ),
         ],
       ),
@@ -235,7 +405,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, -4),
                       ),
