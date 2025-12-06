@@ -8,11 +8,15 @@ import 'package:bill_bill/features/transactions/domain/entities/transaction_type
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 /// 앱의 진입점
 /// Hive 초기화 및 Riverpod ProviderScope 설정
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 날짜 포맷 초기화 (한국어)
+  await initializeDateFormatting('ko_KR', null);
 
   // Hive 초기화
   await Hive.initFlutter();

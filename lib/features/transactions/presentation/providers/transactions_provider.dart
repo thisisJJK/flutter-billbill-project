@@ -52,13 +52,19 @@ final borrowedTransactionsProvider = StreamProvider<List<Transaction>>((
   }
 });
 
-/// 특정 거래 상세 Provider (ID 기반)
-final transactionDetailProvider = FutureProvider.family<Transaction?, String>((
-  ref,
-  id,
-) async {
-  final repository = ref.watch(transactionRepositoryProvider);
-  return await repository.getTransactionById(id);
+/// 특정 거래 상세 Provider (ID 기반, 실시간 업데이트)
+/// Hive Box의 변경사항을 Stream으로 감지하여 자동 업데이트
+final transactionDetailProvider =
+    StreamProvider.family<Transaction?, String>((ref, id) async* {
+  final box = Hive.box<Transaction>('transactions');
+
+  // 초기 데이터 emit
+  yield box.get(id);
+
+  // 이후 변경사항 감지 (특정 키의 변경만 감지)
+  await for (final _ in box.watch(key: id)) {
+    yield box.get(id);
+  }
 });
 
 /// 거래 검색 Provider

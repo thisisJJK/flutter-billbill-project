@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../features/settings/presentation/pages/settings_screen.dart';
 import '../features/splash/presentation/pages/splash_screen.dart';
 import '../features/transactions/presentation/pages/add_transaction_screen.dart';
-import '../features/transactions/presentation/pages/counterparty_selection_screen.dart';
 import '../features/transactions/presentation/pages/home_screen.dart';
 import '../features/transactions/presentation/pages/partial_payment_screen.dart';
 import '../features/transactions/presentation/pages/transaction_detail_screen.dart';
@@ -26,13 +25,6 @@ final appRouter = GoRouter(
           path: 'add',
           name: 'addTransaction',
           builder: (context, state) => const AddTransactionScreen(),
-          routes: [
-            GoRoute(
-              path: 'counterparty',
-              name: 'selectCounterparty',
-              builder: (context, state) => const CounterpartySelectionScreen(),
-            ),
-          ],
         ),
 
         GoRoute(

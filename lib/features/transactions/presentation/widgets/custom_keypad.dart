@@ -7,16 +7,19 @@ class CustomKeypad extends StatelessWidget {
   final ValueChanged<String> onTap;
   final Color confirmColor;
 
+  final String submitLabel;
+
   const CustomKeypad({
     super.key,
     required this.onTap,
     required this.confirmColor,
+    this.submitLabel = '완료',
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.bgGrey.withOpacity(0.3),
+      color: AppColors.bgGrey.withValues(alpha: 0.3),
       padding: const EdgeInsets.only(bottom: 20, top: 10),
       child: Column(
         children: [
@@ -48,8 +51,8 @@ class CustomKeypad extends StatelessWidget {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  '완료',
+                child: Text(
+                  submitLabel,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
